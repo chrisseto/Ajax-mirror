@@ -13,3 +13,6 @@ Usage:
 ```
 $capserjs Ajax-mirror.js
 ```
+
+Notes:
+Embedded youtube not working
