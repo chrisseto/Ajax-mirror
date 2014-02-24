@@ -8,6 +8,11 @@ Uses [mockjax](https://github.com/appendto/jquery-mockjax) to mock ajax calls to
 Currently about 45% working.
 
 Note: This script is currently site specific, I'll change that soon.
+###ToDo
+* Async
+* stablity testing
+* faster
+* better way to pull page source
 
 Usage:
 ```
