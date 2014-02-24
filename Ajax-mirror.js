@@ -1,52 +1,28 @@
 //Global variables only change base url. NEVER leave a trailing /
 var baseUrl = 'http://localhost:5000';
-var protocol = 'http://';
+var protocol = 'http://'
 //Dont change anything past here
 var linkToGo = ['/'];
 var visited = [];
-var resourceLinks = [];
+var resources = [];
 var ajaxes = [];
 var index = 0;
+
+//Constants
 var spider = require('casper').create();
 var fs = require('fs');
+var getDirectory = /^(.+)\/([^\/]+)$/;
+var stripUrlParams = /(.+?)(\?.*)$/;
 // /vars
 
-function makeFauxJax(url) {
-    if (ajaxes != []) {
-        var fauxJax = fs.open('.' + url + 'jax.js', 'w');
-
-        fauxJax.write('(function() {\n');
-        var temp;
-        for (var i = 0; i < ajaxes.length; i++) {
-            if (ajaxes[i].indexOf('?') != -1)
-                temp = ajaxes[i].substring(0, ajaxes[i].indexOf('?')).replace(baseUrl, '');
-            else
-                temp = ajaxes[i].replace(baseUrl, '');
-            fauxJax.write('$.mockjax({\nurl: \'' + temp + '\',\ndataType: \'json\',\nresponseText: ');
-
-            fauxJax.write(this.evaluate(function(ajax) {
-                return __utils__.sendAJAX(ajax);
-            }, ajaxes[i]));
-
-            fauxJax.write('\n});');
-        }
-
-        fauxJax.write('})();');
-        fauxJax.close();
-        ajaxes = [];
-    }
-    return true;
-}
-
 function saveResources() {
-    for (var i = 0; i < resourceLinks.length; i++) {
-        var temp = resourceLinks[i].replace(baseUrl + '/', '').split('/');
-        temp.pop();
-        fs.makeTree(temp.join('/'));
-        this.download(resourceLinks[i], resourceLinks[i].replace(baseUrl + '/', ''));
+    spider.echo('Saving resources...');
+    for (var i = 0; i < resources.length; i++) {
+        this.download(resources[i], resources[i].replace(/^(?:\/\/|[^\/]+)*\//, "./"));
+        spider.echo('Saved ' + resources[i] + ' (' + (i + 1) + '/' + resources.length + ')');
     }
+    spider.echo('Finished saving resources.');
 }
-
 
 function stripLinks() {
     var links = document.querySelectorAll('a');
@@ -78,64 +54,90 @@ function grab(url) {
     });
 }
 
-function localizeUrls(html) {
-    html = html.replace(new RegExp('/static', 'g'), fs.workingDirectory + '/static');
-    return html;
+function parseUrl(url) {
+    var matches = /^(.+:\/\/)(.+?)\/(.*)$/.exec(url);
+    protocol = matches[1];
+    domain = matches[2];
 }
 
-//Html grabbing will be done here pull from dumpHtml.js
+function getSaveName(url) {
+    url = url.replace(baseUrl, '');
+    if (url.charAt(url.length - 1) === '/')
+        url += 'index.html';
+    else
+        url += '.html';
+    this.echo('Saving as .' + url);
+    return '.' + url;
+}
 
 function clone() {
-    //removing first /
-    var url = linkToGo[index].replace('/', '');
+    this.getUrl = baseUrl + linkToGo[index];
 
     this.then(function() {
 
-        var html = this.evaluate(function() {
-            return document.all[0].outerHTML; //$('html').html();
-        });
+        var html = fs.open(getSaveName.call(this, this.getUrl), 'w');
+        var src = this.evaluate(function(url) {
+            return __utils__.sendAJAX(url);
+        }, this.getUrl);
 
-        html = localizeUrls(html);
+        src = src.replace(/\"(?:\/\/|["\/]+)*\//g, '"' + fs.workingDirectory + '/');
+        html.write(src);
 
-        var temp = url.split('/');
-        if (temp.length > 1) {
-            temp.pop();
-            fs.makeTree(temp.join('/'));
-        } else {
-            fs.makeTree(url);
+        if (buildFauxJax.call(this))
+            html.write('<script src="' + fs.workingDirectory + '/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>');
+
+        html.close();
+    });
+}
+
+function buildFauxJax() {
+    this.echo('Mocking AJAX...')
+    if (ajaxes.length > 0) {
+        var fauxJax = fs.open('.' + linkToGo[index] + 'fauxJax.js', 'w');
+
+        fauxJax.write('(function() {\n');
+
+        for (var i = 0; i < ajaxes.length; i++) {
+            this.echo('Mocking request to ' + ajaxes[i] + ' (' + (i + 1) + '/' + ajaxes.length + ')');
+            fauxJax.write('$.mockjax({\nurl: \'' + ajaxes[i] + '\',\ndataType: \'json\',\nresponseText: ');
+
+            fauxJax.write(this.evaluate(function(ajax) {
+                return __utils__.sendAJAX(ajax);
+            }, ajaxes[i]));
+
+            fauxJax.write('\n});');
         }
-        if (url.slice(-1) === '/' || url == '')
-            fs.write(url + 'index.html', html, 'w');
-        else
-            fs.write(url + '.html', html, 'w');
-    });
 
-}
+        fauxJax.write('})();');
+        fauxJax.close();
+        ajaxes = [];
+        this.echo('Finished mocking.')
+        return true;
+    }
+    this.echo('Finished mocking.')
+    return false;
+};
 
-function processResources() {
-    resourceLinks = resourceLinks.filter(function(element, position) {
-        return resourceLinks.indexOf(element) == position && element.indexOf(baseUrl) != -1 && element.slice(-1) != '/' && element.indexOf('.') != -1;
-    });
-    resourceLinks = resourceLinks.map(function(element) {
-        if (element.indexOf('?') != -1)
-            return element.substring(0, element.indexOf('?'));
-        return element;
-    });
-}
+spider.on('resource.requested', function(resource) {
 
+    resource.url = resource.url.replace(stripUrlParams, '$1');
+    if (resource.url != baseUrl + linkToGo[index] && resource.url.indexOf(baseUrl) != -1) {
 
-//Here add resource.saveLocation = relative path
-spider.on('resource.received', function(resource) {
-    if (resource.url.indexOf('.') == -1 && resource.url != linkToGo[index] && ajaxes.indexOf(resource.url) == -1)
-        ajaxes.push(resource.url);
-    else
-        resourceLinks.push(resource.url);
+        if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + linkToGo[index] && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
+            resource.url = resource.url.replace(baseUrl, '');
+            ajaxes.push(resource.url);
+            this.echo('Pushed ' + resource.url + ' to ajax queue.');
+        } else if (resources.indexOf(resource.url) == -1) {
+            resources.push(resource.url);
+        }
+    }
 });
 
 //Here lives the big daddy driver function
 
 function toSpiderOrNotToSpider() {
     if (linkToGo[index]) {
+
         if (visited.indexOf(linkToGo[index]) != -1) {
             index++;
             this.run(toSpiderOrNotToSpider);
@@ -144,31 +146,31 @@ function toSpiderOrNotToSpider() {
         this.start(baseUrl + linkToGo[index]);
         grab.call(this, linkToGo[index]);
         clone.call(this);
-        makeFauxJax.call(this, linkToGo[index]);
         visited.push(linkToGo[index]);
-        index++;
+        this.then(function(){index++});
         this.run(toSpiderOrNotToSpider);
     } else {
-        processResources();
         saveResources.call(this);
         this.echo('Found ' + visited.length + ' links.');
         this.echo(' - ' + visited.join('\n - '));
-        this.echo('Caught ' + resourceLinks.length + ' resources.');
-        this.echo(' - ' + resourceLinks.join('\n - '));
+        this.echo('Caught ' + resources.length + ' resources.');
+        this.echo(' - ' + resources.join('\n - '));
         this.exit();
     }
 }
+
+//////////////Execution begins here/////////////////
+var domain = baseUrl.replace(protocol, '');
+//Creating the base directory
+if (!fs.exists(domain))
+    fs.makeDirectory(domain);
+fs.changeWorkingDirectory(domain);
 
 spider.start().then(function() {
     this.echo('===============');
     this.echo('Spider started.');
     this.echo('===============\n');
 });
-
-//create base folder
-if (!fs.exists(baseUrl.replace(protocol, '')))
-    fs.makeDirectory(baseUrl.replace(protocol, ''));
-fs.changeWorkingDirectory(baseUrl.replace(protocol, ''));
 
 //Lift off!
 spider.run(toSpiderOrNotToSpider);

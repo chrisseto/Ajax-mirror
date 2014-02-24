@@ -74,7 +74,6 @@ function finishClonePage() {
     html.close();
     saveResources.call(this);
     this.echo('Finished cloning ' + baseUrl);
-    this.exit();
 }
 
 
@@ -108,5 +107,7 @@ if (!fs.exists(domain))
 fs.changeWorkingDirectory(domain);
 
 casper.start();
-cloneUrl.call(this, baseUrl);
+//cloneUrl.call(this, baseUrl);
+cloneUrl.call(this, 'http://localhost:5000/');
 casper.run();
+//casper.exit();
