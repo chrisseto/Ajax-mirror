@@ -5,6 +5,7 @@ var protocol = 'http://';
 var ajaxes = [];
 var resources = [];
 var getDirectory = /^(.+)\/([^\/]+)$/;
+var stripUrlParams = /(.+?)(\?.*)$/;
 
 function buildFauxJax() {
     var fauxJax = fs.open('jax.js', 'w');
@@ -32,7 +33,6 @@ function buildFauxJax() {
 
 function saveResources() {
     for (var i = 0; i < resources.length; i++) {
-        //fs.makeTree(resources[i][2]); //Do I need to be here?
         this.download(resources[i][0], resources[i][1]);
     }
 }
@@ -65,6 +65,7 @@ casper.on('resource.requested', function(resource) {
     if (resource.url.indexOf('.') == -1 && resource.url != baseUrl && ajaxes.indexOf(resource.url) == -1) {
         ajaxes.push(resource.url);
     } else if (resources.indexOf(resource.url) == -1) {
+        resource.url = resource.url.replace(stripUrlParams,'$1');
         resources.push([resource.url, resource.url.replace(/^(?:\/\/|[^\/]+)*\//, "./"), getDirectory.exec(resource.url.replace(/^(?:\/\/|[^\/]+)*\//, "./"))[1] + '/']);
     }
 });
