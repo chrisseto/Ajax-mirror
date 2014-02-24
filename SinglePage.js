@@ -1,27 +1,39 @@
 var casper = require('casper').create();
 var fs = require('fs');
-var baseUrl = 'http://localhost:5000';
-var protocol = 'http://';
+var baseUrl = 'http://localhost:5000/62w3d/'; //The starting url should really only be http://localhost:500/
+var protocol, domain;
+
 var ajaxes = [];
 var resources = [];
 var getDirectory = /^(.+)\/([^\/]+)$/;
 var stripUrlParams = /(.+?)(\?.*)$/;
 var caputuring = true;
 
+function parseUrl(url) {
+    var matches = /^(.+:\/\/)(.+?)\/(.*)$/.exec(url);
+    protocol = matches[1];
+    domain = matches[2];
+}
+
+function getSaveName(url) {
+    var save = url;
+    url = url.replace(protocol + domain, '');
+    if(url.charAt(url.length-1) === '/')
+        url += 'index.html';
+    casper.echo('Saving ' + save + ' as .' + url);
+    return '.' + url;
+}
+
 function buildFauxJax() {
     casper.echo('Mocking AJAX...')
     if (ajaxes.length > 0) {
-        var fauxJax = fs.open('jax.js', 'w');
+        var fauxJax = fs.open('.' + baseUrl.replace(protocol + domain, '') + 'fauxJax.js', 'w');
 
         fauxJax.write('(function() {\n');
-        var temp;
+
         for (var i = 0; i < ajaxes.length; i++) {
-            casper.echo('Cloning request to ' + ajaxes[i] + ' (' + (i+1) + '/' + ajaxes.length + ')');
-            if (ajaxes[i].indexOf('?') != -1)
-                temp = ajaxes[i].substring(0, ajaxes[i].indexOf('?')).replace(baseUrl, '');
-            else
-                temp = ajaxes[i].replace(baseUrl, '');
-            fauxJax.write('$.mockjax({\nurl: \'' + temp + '\',\ndataType: \'json\',\nresponseText: ');
+            casper.echo('Mocking request to ' + ajaxes[i] + ' (' + (i+1) + '/' + ajaxes.length + ')');
+            fauxJax.write('$.mockjax({\nurl: \'' + ajaxes[i] + '\',\ndataType: \'json\',\nresponseText: ');
 
             fauxJax.write(this.evaluate(function(ajax) {
                 return __utils__.sendAJAX(ajax);
@@ -48,19 +60,25 @@ function saveResources() {
     casper.echo('Finished saving resources.');
 }
 
+
+function cloneUrl(url)
+{
+
+}
+
 casper.start(baseUrl);
 
 casper.then(function() {
-    var html = fs.open('page.html', 'w');
+    var html = fs.open(getSaveName(baseUrl), 'w');
+    caputuring = false;
     var src = this.evaluate(function(url) {
         return __utils__.sendAJAX(url);
     }, baseUrl);
-    src = src.replace(/\"(?:\/\/|["\/]+)*\//g, "\"./");
+    src = src.replace(/\"(?:\/\/|["\/]+)*\//g, '"' + fs.workingDirectory + '/');
     html.write(src);
     if (buildFauxJax.call(this))
-        html.write('<script src="./jquery.mockjax.js"></script>\n<script src="./jax.js"></script>');
+        html.write('<script src="' + fs.workingDirectory + '/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>');
     html.close();
-    caputuring = false;
     saveResources.call(this);
     this.echo('Finished cloning ' + baseUrl);
     this.exit();
@@ -69,7 +87,8 @@ casper.then(function() {
 casper.on('resource.requested', function(resource) {
     if (caputuring) {
         //Or up here
-        if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + '/' && ajaxes.indexOf(resource.url) == -1) {
+        if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + '/' && resource.url != baseUrl && ajaxes.indexOf(resource.url) == -1) {
+            resource.url = resource.url.replace(stripUrlParams, '$1').replace(protocol + domain, '');
             casper.echo('Pushed ' +  resource.url + ' to ajax queue.');
             //TODO regex parse urls here.
             ajaxes.push(resource.url);
@@ -81,8 +100,11 @@ casper.on('resource.requested', function(resource) {
     }
 });
 
-if (!fs.exists(baseUrl.replace(protocol, '')))
-    fs.makeDirectory(baseUrl.replace(protocol, ''));
-fs.changeWorkingDirectory(baseUrl.replace(protocol, ''));
+parseUrl(baseUrl);
+
+//Creating the base directory
+if (!fs.exists(domain))
+    fs.makeDirectory(domain);
+fs.changeWorkingDirectory(domain);
 
 casper.run();
