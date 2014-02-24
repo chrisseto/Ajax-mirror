@@ -1,5 +1,5 @@
 //Global variables only change base url. NEVER leave a trailing /
-var baseUrl = 'http://localhost:5000';
+var baseUrl = 'http://staging.osf.io';
 var protocol = 'http://'
 //Dont change anything past here
 var linkToGo = ['/'];
@@ -9,7 +9,10 @@ var ajaxes = [];
 var index = 0;
 
 //Constants
-var spider = require('casper').create();
+var spider = require('casper').create({
+    verbose: true,
+    logLevel: "debug"
+});
 var fs = require('fs');
 var getDirectory = /^(.+)\/([^\/]+)$/;
 var stripUrlParams = /(.+?)(\?.*)$/;
@@ -91,8 +94,8 @@ function clone() {
 }
 
 function buildFauxJax() {
-    this.echo('Mocking AJAX...')
     if (ajaxes.length > 0) {
+        this.echo('Mocking AJAX...')
         var fauxJax = fs.open('.' + linkToGo[index] + 'fauxJax.js', 'w');
 
         fauxJax.write('(function() {\n');
@@ -114,14 +117,14 @@ function buildFauxJax() {
         this.echo('Finished mocking.')
         return true;
     }
-    this.echo('Finished mocking.')
     return false;
 };
 
 spider.on('resource.requested', function(resource) {
 
     resource.url = resource.url.replace(stripUrlParams, '$1');
-    if (resource.url != baseUrl + linkToGo[index] && resource.url.indexOf(baseUrl) != -1) {
+
+    if (linkToGo.indexOf(resource.url.replace(baseUrl,'')) == -1 && resource.url.indexOf(baseUrl) != -1) {
 
         if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + linkToGo[index] && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
             resource.url = resource.url.replace(baseUrl, '');
