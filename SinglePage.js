@@ -3,6 +3,7 @@ var fs = require('fs');
 var baseUrl = 'http://localhost:5000/62w3d/'; //The starting url should really only be http://localhost:500/
 var protocol, domain;
 
+//Change to dictionarys
 var ajaxes = [];
 var resources = [];
 var getDirectory = /^(.+)\/([^\/]+)$/;
@@ -60,15 +61,7 @@ function saveResources() {
     casper.echo('Finished saving resources.');
 }
 
-
-function cloneUrl(url)
-{
-
-}
-
-casper.start(baseUrl);
-
-casper.then(function() {
+function finishClonePage() {
     var html = fs.open(getSaveName(baseUrl), 'w');
     caputuring = false;
     var src = this.evaluate(function(url) {
@@ -82,29 +75,38 @@ casper.then(function() {
     saveResources.call(this);
     this.echo('Finished cloning ' + baseUrl);
     this.exit();
-});
+}
+
 
 casper.on('resource.requested', function(resource) {
     if (caputuring) {
         //Or up here
+        resource.url = resource.url.replace(stripUrlParams, '$1');
+
         if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + '/' && resource.url != baseUrl && ajaxes.indexOf(resource.url) == -1) {
-            resource.url = resource.url.replace(stripUrlParams, '$1').replace(protocol + domain, '');
+            resource.url = resource.url.replace(protocol + domain, '');
             casper.echo('Pushed ' +  resource.url + ' to ajax queue.');
             //TODO regex parse urls here.
             ajaxes.push(resource.url);
         } else if (resources.indexOf(resource) == -1 && resource.url != baseUrl + '/') {
             //TODO fix resource duplication bug
-            resource.url = resource.url.replace(stripUrlParams, '$1');
             resources.push([resource.url, resource.url.replace(/^(?:\/\/|[^\/]+)*\//, "./"), getDirectory.exec(resource.url.replace(/^(?:\/\/|[^\/]+)*\//, "./"))[1] + '/']);
         }
     }
 });
 
+function cloneUrl(url)
+{
+    casper.thenOpen(url);
+    casper.then(finishClonePage);
+}
+//////////////Execution begins here/////////////////
 parseUrl(baseUrl);
-
 //Creating the base directory
 if (!fs.exists(domain))
     fs.makeDirectory(domain);
 fs.changeWorkingDirectory(domain);
 
+casper.start();
+cloneUrl.call(this, baseUrl);
 casper.run();
