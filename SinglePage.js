@@ -9,12 +9,14 @@ var stripUrlParams = /(.+?)(\?.*)$/;
 var caputuring = true;
 
 function buildFauxJax() {
-    if (ajaxes) {
+    casper.echo('Mocking AJAX...')
+    if (ajaxes.length > 0) {
         var fauxJax = fs.open('jax.js', 'w');
 
         fauxJax.write('(function() {\n');
         var temp;
         for (var i = 0; i < ajaxes.length; i++) {
+            casper.echo('Cloning request to ' + ajaxes[i] + ' (' + (i+1) + '/' + ajaxes.length + ')');
             if (ajaxes[i].indexOf('?') != -1)
                 temp = ajaxes[i].substring(0, ajaxes[i].indexOf('?')).replace(baseUrl, '');
             else
@@ -30,16 +32,18 @@ function buildFauxJax() {
 
         fauxJax.write('})();');
         fauxJax.close();
+        casper.echo('Finished mocking.')
         return true;
     }
+    casper.echo('Finished mocking.')
     return false;
 };
 
 function saveResources() {
-    casper.echo('Saving resources.');
+    casper.echo('Saving resources...');
     for (var i = 0; i < resources.length; i++) {
         this.download(resources[i][0], resources[i][1]);
-        casper.echo('Saved ' + resources[i][1] + ' (' + i + '/' + resources.length + ')');
+        casper.echo('Saved ' + resources[i][1] + ' (' + (i+1) + '/' + resources.length + ')');
     }
     casper.echo('Finished saving resources.');
 }
@@ -58,15 +62,19 @@ casper.then(function() {
     html.close();
     caputuring = false;
     saveResources.call(this);
+    this.echo('Finished cloning ' + baseUrl);
     this.exit();
 });
 
 casper.on('resource.requested', function(resource) {
     if (caputuring) {
+        //Or up here
         if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + '/' && ajaxes.indexOf(resource.url) == -1) {
             casper.echo('Pushed ' +  resource.url + ' to ajax queue.');
+            //TODO regex parse urls here.
             ajaxes.push(resource.url);
         } else if (resources.indexOf(resource) == -1 && resource.url != baseUrl + '/') {
+            //TODO fix resource duplication bug
             resource.url = resource.url.replace(stripUrlParams, '$1');
             resources.push([resource.url, resource.url.replace(/^(?:\/\/|[^\/]+)*\//, "./"), getDirectory.exec(resource.url.replace(/^(?:\/\/|[^\/]+)*\//, "./"))[1] + '/']);
         }
