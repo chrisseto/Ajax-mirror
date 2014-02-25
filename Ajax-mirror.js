@@ -172,12 +172,7 @@ spider.on('resource.requested', function(resource) {
     }
 });
 
-spider.on('resource.received', function(resource) {
-  this.echo(JSON.stringify(resource));
-});
-
 //Here lives the big daddy driver function
-
 function toSpiderOrNotToSpider() {
     if (linkToGo[index]) {
 
@@ -197,6 +192,7 @@ function toSpiderOrNotToSpider() {
         this.run(toSpiderOrNotToSpider);
     } else {
         saveResources.call(this);
+        this.download('https://raw.github.com/appendto/jquery-mockjax/master/jquery.mockjax.js','./static/js/jquery.mockjax.js');
         this.echo('Found ' + visited.length + ' links.');
         this.echo(' - ' + visited.join('\n - '));
         this.echo('Caught ' + resources.length + ' resources.');
