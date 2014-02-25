@@ -13,11 +13,23 @@ Note: This script is currently site specific, I'll change that soon.
 * stablity testing
 * faster
 * better way to pull page source
+    - grab page source from resources, first thing loaded
+* resume?
+* stop downloading files
 
+
+###Done
+* not clones pages with #'s
+    - ie: index.html#somesection
 Usage:
 ```
 $capserjs Ajax-mirror.js
 ```
+
+Target site defaults to localhost:5000
+set target either in file or with --s=http://example.com 
+                            or --server=http://example.com
+run with k, `casperjs Ajax-mirror.js k`, to convert links to the current working directory.
 
 Notes:
 Embedded youtube not working
