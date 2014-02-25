@@ -102,6 +102,39 @@ function clickThings() {
     });
 }
 
+function getHgridUrls() {
+  links = this.thenEvaluate(function() {
+    if(filebrowser) {
+      links = filebrowser.grid.getData().map(function(e){return e.urls.view;});
+      links = links.filter(function(e,p){return e != null});
+      return links;
+    }
+    return false;
+  });
+  if(links)
+    linkToGo.concat(links);
+}
+
+function buildHTAccess() {
+
+}
+
+function get404() {
+  this.getUrl = baseUrl + '/404.html';
+  this.then(function() {
+
+    var html = fs.open('404.html', 'w');
+    var src = this.evaluate(function(url) {
+        return __utils__.sendAJAX(url);
+    }, this.getUrl);
+
+    if (procUrls)
+        src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
+    html.write(src);
+    html.close();
+  });
+}
+
 function clone() {
     this.getUrl = baseUrl + linkToGo[index];
 
@@ -170,6 +203,10 @@ spider.on('resource.requested', function(resource) {
             resources.push(resource.url);
         }
     }
+});
+
+spider.on('http.status.302', function(resource) {
+    this.echo('Hey, this one is 302: ' + resource.url);
 });
 
 //Here lives the big daddy driver function
