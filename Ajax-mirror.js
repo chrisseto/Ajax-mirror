@@ -1,8 +1,8 @@
 //Global variables only change base url. NEVER leave a trailing /
-var baseUrl = 'http://localhost:5000'//'http://staging.osf.io';
+var baseUrl = 'http://localhost:5000' //'http://staging.osf.io';
 var protocol = 'http://'
 //Dont change anything past here
-var linkToGo = ['/','/nw687/'];
+var linkToGo = ['/', '/nw687/'];
 var visited = [];
 var resources = [];
 var ajaxes = [];
@@ -12,7 +12,7 @@ var procUrls = false;
 //Constants
 var spider = require('casper').create({
     pageSettings: {
-      loadPlugins: false
+        loadPlugins: false
     },
 });
 var fs = require('fs');
@@ -21,12 +21,12 @@ var stripUrlParams = /(.+?)(\?.*)$/;
 // /vars
 
 function getCli() {
-  if(spider.cli.has('server'))
-    baseUrl = spider.cli.get('server');
-  if(spider.cli.has('s'))
-    baseUrl = spider.cli.get('s');
-  if(spider.cli.has('k'))
-    procUrls = true;
+    if (spider.cli.has('server'))
+        baseUrl = spider.cli.get('server');
+    if (spider.cli.has('s'))
+        baseUrl = spider.cli.get('s');
+    if (spider.cli.has('k'))
+        procUrls = true;
 }
 
 function saveResources() {
@@ -84,6 +84,24 @@ function getSaveName(url) {
     return '.' + url;
 }
 
+function clickThings() {
+    this.then(function() {
+        var rv;
+        do {
+            rv = this.evaluate(function() {
+                if ($('.hg-expand').length > 0) {
+                    $('.hg-expand').click();
+                    return true;
+                }
+                return false
+            });
+            if(rv)
+              this.wait(5000);
+        } while (rv);
+
+    });
+}
+
 function clone() {
     this.getUrl = baseUrl + linkToGo[index];
 
@@ -94,17 +112,17 @@ function clone() {
             return __utils__.sendAJAX(url);
         }, this.getUrl);
 
-        if(procUrls)
-          src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
+        if (procUrls)
+            src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
 
         var i = src.indexOf('</head>');
         html.write(src.slice(0, i));
 
         if (buildFauxJax.call(this))
-          if(procUrls)
-            html.write('\n<script src="' + fs.workingDirectory + '/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
-          else
-            html.write('\n<script src="/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
+            if (procUrls)
+                html.write('\n<script src="' + fs.workingDirectory + '/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
+            else
+                html.write('\n<script src="/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
 
         html.write(src.slice(i));
         html.close();
@@ -119,8 +137,8 @@ function buildFauxJax() {
         fauxJax.write('(function() {\n');
 
         for (var i = 0; i < ajaxes.length; i++) {
-            this.echo('Mocking request to ' + ajaxes[i] + ' (' + (i + 1) + '/' + ajaxes.length + ')');
-            fauxJax.write('$.mockjax({\nurl: \'' + ajaxes[i] + '\',\ndataType: \'json\',\nresponseText: ');
+            this.echo('Mocking request to ' + decodeURI(ajaxes[i]) + ' (' + (i + 1) + '/' + ajaxes.length + ')');
+            fauxJax.write('$.mockjax({\nurl: \'' + decodeURI(ajaxes[i]) + '\',\ndataType: \'json\',\nresponseText: ');
 
             fauxJax.write(this.evaluate(function(ajax) {
                 return __utils__.sendAJAX(ajax);
@@ -142,16 +160,20 @@ spider.on('resource.requested', function(resource) {
 
     resource.url = resource.url.replace(stripUrlParams, '$1');
 
-    if (linkToGo.indexOf(resource.url.replace(baseUrl,'')) == -1 && resource.url.indexOf(baseUrl) != -1) {
+    if (linkToGo.indexOf(resource.url.replace(baseUrl, '')) == -1 && resource.url.indexOf(baseUrl) != -1) {
 
         if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + linkToGo[index] && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
             resource.url = resource.url.replace(baseUrl, '');
             ajaxes.push(resource.url);
             this.echo('Pushed ' + resource.url + ' to ajax queue.');
-        } else if (resources.indexOf(resource.url) == -1 && resource.url.charAt(resource.url.length-1) != '/') {
+        } else if (resources.indexOf(resource.url) == -1 && resource.url.charAt(resource.url.length - 1) != '/') {
             resources.push(resource.url);
         }
     }
+});
+
+spider.on('resource.received', function(resource) {
+  this.echo(JSON.stringify(resource));
 });
 
 //Here lives the big daddy driver function
@@ -166,9 +188,12 @@ function toSpiderOrNotToSpider() {
         this.echo('Crawling ' + baseUrl + linkToGo[index] + '(' + index + '/' + linkToGo.length + ')');
         this.start(baseUrl + linkToGo[index]);
         grab.call(this, linkToGo[index]);
+        clickThings.call(this);
         clone.call(this);
         visited.push(linkToGo[index]);
-        this.then(function(){index++});
+        this.then(function() {
+            index++
+        });
         this.run(toSpiderOrNotToSpider);
     } else {
         saveResources.call(this);
