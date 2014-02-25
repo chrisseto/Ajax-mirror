@@ -16,22 +16,33 @@ Note:
 * better way to pull page source
     - grab page source from resources, first thing loaded
 * resume?
-* stop downloading files
 * build 404 file
     - Generate .htaccess?
+* Disable buttons?
+* cloning redirects
+* code review/cleanup
+* FauxJax still catching html
+* create one FauxJax file?
+    - Might be better might be worse...
+* Url params
 
 ###Done
 * not clones pages with #'s
     - ie: index.html#somesection
 * Emebedded youtube
+* stop downloading files
+* folder Naming
+
 Usage:
 ```
 $capserjs Ajax-mirror.js
 ```
 
 Target site defaults to localhost:5000
-set target either in file or with --s=http://example.com 
+
+Set target either in file or with --s=http://example.com 
                             or --server=http://example.com
+
 run with k, `casperjs Ajax-mirror.js k`, to convert links to the current working directory.
 
 Notes:
