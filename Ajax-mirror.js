@@ -1,22 +1,33 @@
 //Global variables only change base url. NEVER leave a trailing /
-var baseUrl = 'http://staging.osf.io';
+var baseUrl = 'http://localhost:5000'//'http://staging.osf.io';
 var protocol = 'http://'
 //Dont change anything past here
-var linkToGo = ['/'];
+var linkToGo = ['/','/nw687/'];
 var visited = [];
 var resources = [];
 var ajaxes = [];
 var index = 0;
+var procUrls = false;
 
 //Constants
 var spider = require('casper').create({
-    verbose: true,
-    logLevel: "debug"
+    pageSettings: {
+      loadPlugins: false
+    },
 });
 var fs = require('fs');
 var getDirectory = /^(.+)\/([^\/]+)$/;
 var stripUrlParams = /(.+?)(\?.*)$/;
 // /vars
+
+function getCli() {
+  if(spider.cli.has('server'))
+    baseUrl = spider.cli.get('server');
+  if(spider.cli.has('s'))
+    baseUrl = spider.cli.get('s');
+  if(spider.cli.has('k'))
+    procUrls = true;
+}
 
 function saveResources() {
     spider.echo('Saving resources...');
@@ -42,7 +53,7 @@ function cleanLinks(links) {
 
 function processLinks(links) {
     filtered = links.filter(function(element, position) {
-        return links.indexOf(element) == position && element.charAt(0) == '/' && linkToGo.indexOf(element) == -1 && visited.indexOf(element) == -1;
+        return links.indexOf(element) == position && element.charAt(0) == '/' && linkToGo.indexOf(element) == -1 && visited.indexOf(element) == -1 && element.indexOf('#') == -1;
     });
 
     linkToGo = linkToGo.concat(filtered);
@@ -68,7 +79,7 @@ function getSaveName(url) {
     if (url.charAt(url.length - 1) === '/')
         url += 'index.html';
     else
-        url += '.html';
+        url += '/index.html';
     this.echo('Saving as .' + url);
     return '.' + url;
 }
@@ -83,12 +94,19 @@ function clone() {
             return __utils__.sendAJAX(url);
         }, this.getUrl);
 
-        src = src.replace(/\"(?:\/\/|["\/]+)*\//g, '"' + fs.workingDirectory + '/');
-        html.write(src);
+        if(procUrls)
+          src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
+
+        var i = src.indexOf('</head>');
+        html.write(src.slice(0, i));
 
         if (buildFauxJax.call(this))
-            html.write('<script src="' + fs.workingDirectory + '/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>');
+          if(procUrls)
+            html.write('\n<script src="' + fs.workingDirectory + '/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
+          else
+            html.write('\n<script src="/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
 
+        html.write(src.slice(i));
         html.close();
     });
 }
@@ -130,7 +148,7 @@ spider.on('resource.requested', function(resource) {
             resource.url = resource.url.replace(baseUrl, '');
             ajaxes.push(resource.url);
             this.echo('Pushed ' + resource.url + ' to ajax queue.');
-        } else if (resources.indexOf(resource.url) == -1) {
+        } else if (resources.indexOf(resource.url) == -1 && resource.url.charAt(resource.url.length-1) != '/') {
             resources.push(resource.url);
         }
     }
@@ -145,7 +163,7 @@ function toSpiderOrNotToSpider() {
             index++;
             this.run(toSpiderOrNotToSpider);
         }
-        this.echo('Crawling ' + baseUrl + linkToGo[index]);
+        this.echo('Crawling ' + baseUrl + linkToGo[index] + '(' + index + '/' + linkToGo.length + ')');
         this.start(baseUrl + linkToGo[index]);
         grab.call(this, linkToGo[index]);
         clone.call(this);
