@@ -6,8 +6,12 @@ var linkToGo = ['/', '/nw687/'];
 var visited = [];
 var resources = [];
 var ajaxes = [];
+var files = [];
 var index = 0;
 var procUrls = false;
+var additionalFiles = [
+  ['https://raw.github.com/appendto/jquery-mockjax/master/jquery.mockjax.js', 'static/js/jquery.mockjax.js']
+];
 
 //Constants
 var spider = require('casper').create({
@@ -41,13 +45,15 @@ function saveResources() {
 function stripLinks() {
     var links = document.querySelectorAll('a');
     return Array.prototype.map.call(links, function(e) {
+      if(!e.getAttribute('download'))
         return e.getAttribute('href');
+      return null;
     });
 }
 
 function cleanLinks(links) {
     return links.filter(function(element, position) {
-        return links.indexOf(element) == position && element.charAt(0) == '/';
+        return links != null && links.indexOf(element) == position && element.charAt(0) == '/';
     });
 }
 
@@ -95,24 +101,30 @@ function clickThings() {
                 }
                 return false
             });
-            if(rv)
-              this.wait(5000);
+            if (rv)
+                this.wait(5000);
         } while (rv);
 
     });
 }
 
 function getHgridUrls() {
-  links = this.thenEvaluate(function() {
-    if(filebrowser) {
-      links = filebrowser.grid.getData().map(function(e){return e.urls.view;});
-      links = links.filter(function(e,p){return e != null});
-      return links;
-    }
-    return false;
-  });
-  if(links)
-    linkToGo.concat(links);
+    this.then(function() {
+        links = this.evaluate(function() {
+            if (filebrowser) {
+                links = filebrowser.grid.getData().map(function(e) {
+                    return e.urls.view;
+                });
+                links = links.filter(function(e, p) {
+                    return e != null
+                });
+                return links;
+            }
+            return false;
+        });
+        if (links)
+            linkToGo = linkToGo.concat(links);
+    });
 }
 
 function buildHTAccess() {
@@ -120,19 +132,19 @@ function buildHTAccess() {
 }
 
 function get404() {
-  this.getUrl = baseUrl + '/404.html';
-  this.then(function() {
+    this.getUrl = baseUrl + '/404.html';
+    this.then(function() {
 
-    var html = fs.open('404.html', 'w');
-    var src = this.evaluate(function(url) {
-        return __utils__.sendAJAX(url);
-    }, this.getUrl);
+        var html = fs.open('404.html', 'w');
+        var src = this.evaluate(function(url) {
+            return __utils__.sendAJAX(url);
+        }, this.getUrl);
 
-    if (procUrls)
-        src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
-    html.write(src);
-    html.close();
-  });
+        if (procUrls)
+            src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
+        html.write(src);
+        html.close();
+    });
 }
 
 function clone() {
@@ -160,6 +172,22 @@ function clone() {
         html.write(src.slice(i));
         html.close();
     });
+}
+
+function aquireFiles() {
+  files = files.filter(function(e, p) {
+    return files.indexOf(e) == p;
+  });
+  this.each(files, function(res) {
+
+  });
+}
+
+function getAdditionalFiles() {
+  for(var i = 0; i < additionalFiles.length; i++)
+  {
+    this.download(additionalFiles[i][0],additionalFiles[i][1]);
+  }
 }
 
 function buildFauxJax() {
@@ -190,17 +218,18 @@ function buildFauxJax() {
 };
 
 spider.on('resource.requested', function(resource) {
+    if (resource.url != this.getCurrentUrl()) {
+        resource.url = resource.url.replace(stripUrlParams, '$1');
 
-    resource.url = resource.url.replace(stripUrlParams, '$1');
+        if (linkToGo.indexOf(resource.url.replace(baseUrl, '')) == -1 && resource.url.indexOf(baseUrl) != -1) {
 
-    if (linkToGo.indexOf(resource.url.replace(baseUrl, '')) == -1 && resource.url.indexOf(baseUrl) != -1) {
-
-        if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + linkToGo[index] && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
-            resource.url = resource.url.replace(baseUrl, '');
-            ajaxes.push(resource.url);
-            this.echo('Pushed ' + resource.url + ' to ajax queue.');
-        } else if (resources.indexOf(resource.url) == -1 && resource.url.charAt(resource.url.length - 1) != '/') {
-            resources.push(resource.url);
+            if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + linkToGo[index] && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
+                resource.url = resource.url.replace(baseUrl, '');
+                ajaxes.push(resource.url);
+                this.echo('Pushed ' + resource.url + ' to ajax queue.');
+            } else if (resources.indexOf(resource.url) == -1 && resource.url.charAt(resource.url.length - 1) != '/') {
+                resources.push(resource.url);
+            }
         }
     }
 });
@@ -210,6 +239,7 @@ spider.on('http.status.302', function(resource) {
 });
 
 //Here lives the big daddy driver function
+
 function toSpiderOrNotToSpider() {
     if (linkToGo[index]) {
 
@@ -221,6 +251,7 @@ function toSpiderOrNotToSpider() {
         this.start(baseUrl + linkToGo[index]);
         grab.call(this, linkToGo[index]);
         clickThings.call(this);
+        getHgridUrls.call(this);
         clone.call(this);
         visited.push(linkToGo[index]);
         this.then(function() {
@@ -229,7 +260,8 @@ function toSpiderOrNotToSpider() {
         this.run(toSpiderOrNotToSpider);
     } else {
         saveResources.call(this);
-        this.download('https://raw.github.com/appendto/jquery-mockjax/master/jquery.mockjax.js','./static/js/jquery.mockjax.js');
+        get404.call(this);
+        getAdditionalFiles.call(this);
         this.echo('Found ' + visited.length + ' links.');
         this.echo(' - ' + visited.join('\n - '));
         this.echo('Caught ' + resources.length + ' resources.');
