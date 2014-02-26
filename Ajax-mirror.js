@@ -132,13 +132,11 @@ function getHgridUrls() {
 
 function get404() {
     this.echo('Building 404 Page.')
-    this.getUrl = baseUrl + '/404.html';
-    this.then(function() {
+    var getUrl = baseUrl + '/404.html';
+    this.thenOpen(getUrl, function() {
 
-        var html = fs.open('404.html', 'w');
-        var src = this.evaluate(function(url) {
-            return __utils__.sendAJAX(url);
-        }, this.getUrl);
+        var html = fs.open('./404.html', 'w');
+        var src = this.getContent();
 
         src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
         if (procUrls)
@@ -159,12 +157,12 @@ function clone() {
         }, this.getUrl);
 
         if(this.getUrl.indexOf('?') == -1)
-            src = src.replace(/(href=")(\?)/, '$1./%3f');
+            src = src.replace(/(href=")(\?)/g, '$1./%3f');
         else
-            src = src.replace(/(href=")(\?)/, '$1../%3f');
+            src = src.replace(/(href=")(\?)/g, '$1../%3f');
 
         src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
-        
+
         if (procUrls)
             src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
 
