@@ -5,7 +5,7 @@ A casperjs script for cloning ajax and javascript heavy websites for offline vie
 
 Uses [mockjax](https://github.com/appendto/jquery-mockjax) to mock ajax calls to local JSON.
 
-Currently about 70% working.
+Currently about 80% working.
 
 Note: 
 
@@ -13,18 +13,13 @@ Note:
 * Async
 * stablity testing
 * faster
-* better way to pull page source
-    - grab page source from resources, first thing loaded
 * resume?
 * build 404 file
     - Generate .htaccess?
 * Disable buttons?
 * cloning redirects
+    - doesn't seem possibly with casper
 * code review/cleanup
-* FauxJax still catching html
-* create one FauxJax file?
-    - Might be better might be worse...
-* Url params
 
 ###Done
 * not clones pages with #'s
@@ -32,6 +27,12 @@ Note:
 * Emebedded youtube
 * stop downloading files
 * folder Naming
+* FauxJax still catching html
+* Url params
+* create one FauxJax file?
+    - would be worse...
+* better way to pull page source
+    - Doesn't seem to be a better way
 
 Usage:
 ```
