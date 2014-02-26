@@ -129,22 +129,6 @@ function getHgridUrls() {
     });
 }
 
-function get404() {
-    this.echo('Building 404 Page.')
-    var getUrl = baseUrl + '/404.html';
-    this.thenOpen(getUrl, function() {
-
-        var html = fs.open('./404.html', 'w');
-        var src = this.getContent();
-
-        src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
-        if (procUrls)
-            src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
-        html.write(src);
-        html.close();
-    });
-}
-
 function clone() {
     this.getUrl = decodeURI(baseUrl + linkToGo[index]);
 
@@ -256,7 +240,6 @@ function toSpiderOrNotToSpider() {
         this.run(toSpiderOrNotToSpider);
     } else {
         saveResources.call(this);
-        get404.call(this);
         getAdditionalFiles.call(this);
         this.echo('Found ' + visited.length + ' links.');
         this.echo(' - ' + visited.join('\n - '));

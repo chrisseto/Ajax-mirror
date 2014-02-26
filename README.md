@@ -36,7 +36,7 @@ Note:
 
 Usage:
 ```
-$capserjs Ajax-mirror.js
+$capserjs Ajax-mirror.js --web-security=no
 ```
 
 Target site defaults to localhost:5000
@@ -48,7 +48,8 @@ run with k, `casperjs Ajax-mirror.js k`, to convert links to the current working
 
 Notes:
 * Embedded youtube not working
-* This script is currently site specific, I'll change that soon.
+* This script is currently site specific.
     - It may however work for other sites.
 * The script sometimes randomly freezes on the first couple pages.
     - clearing the directory and restarting the script seems to fix this.
+* requires access to the filebrowser object
