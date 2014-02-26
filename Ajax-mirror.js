@@ -17,7 +17,7 @@ var additionalFiles = [
 var spider = require('casper').create({
     pageSettings: {
         loadPlugins: false
-    }//,
+    } //,
     //verbose: true,
     //logLevel: 'debug'
 });
@@ -48,8 +48,8 @@ function stripLinks(url) {
     var links = document.querySelectorAll('a');
     return Array.prototype.map.call(links, function(e) {
         if (!e.getAttribute('download')) {
-                if (e.getAttribute('href') && e.getAttribute('href').charAt(0) === '?')
-                    return url + e.getAttribute('href');
+            if (e.getAttribute('href') && e.getAttribute('href').charAt(0) === '?')
+                return url + e.getAttribute('href');
             return e.getAttribute('href');
         }
         return null;
@@ -123,7 +123,7 @@ function getHgridUrls() {
             }
             return false;
         });
-        if (links){
+        if (links) {
             this.echo('\tFound ' + links.length + ' links from Hgrid.')
             linkToGo = linkToGo.concat(links);
         }
@@ -150,33 +150,36 @@ function clone() {
     this.getUrl = decodeURI(baseUrl + linkToGo[index]);
 
     this.then(function() {
-
-        var html = fs.open(getSaveName.call(this, this.getUrl), 'w');
         var src = this.evaluate(function(url) {
             return __utils__.sendAJAX(url);
         }, this.getUrl);
 
-        if(this.getUrl.indexOf('?') == -1)
-            src = src.replace(/(href=")(\?)/g, '$1./%3f');
-        else
-            src = src.replace(/(href=")(\?)/g, '$1../%3f');
+        if (src.indexOf('data-http-status-code="404"') == -1) {
 
-        src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
+            var html = fs.open(getSaveName.call(this, this.getUrl), 'w');
 
-        if (procUrls)
-            src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
-
-        var i = src.indexOf('</head>');
-        html.write(src.slice(0, i));
-
-        if (buildFauxJax.call(this))
-            if (procUrls)
-                html.write('\n<script src="' + fs.workingDirectory + '/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
+            if (this.getUrl.indexOf('?') == -1)
+                src = src.replace(/(href=")(\?)/g, '$1./%3f');
             else
-                html.write('\n<script src="/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
+                src = src.replace(/(href=")(\?)/g, '$1../%3f');
 
-        html.write(src.slice(i));
-        html.close();
+            src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
+
+            if (procUrls)
+                src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
+
+            var i = src.indexOf('</head>');
+            html.write(src.slice(0, i));
+
+            if (buildFauxJax.call(this))
+                if (procUrls)
+                    html.write('\n<script src="' + fs.workingDirectory + '/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
+                else
+                    html.write('\n<script src="/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
+
+            html.write(src.slice(i));
+            html.close();
+        }
     });
 }
 
@@ -190,8 +193,8 @@ function buildFauxJax() {
     if (ajaxes.length > 0) {
         this.echo('\tMocking AJAX...')
         var saveUrl = '.' + linkToGo[index];
-        if(saveUrl.charAt(saveUrl.length-1) != '/')
-            saveUrl+='/';
+        if (saveUrl.charAt(saveUrl.length - 1) != '/')
+            saveUrl += '/';
         saveUrl += 'fauxJax.js';
         var fauxJax = fs.open(saveUrl, 'w');
 
