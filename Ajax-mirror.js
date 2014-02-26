@@ -269,6 +269,7 @@ function toSpiderOrNotToSpider() {
 }
 
 //////////////Execution begins here/////////////////
+getCli();
 var domain = baseUrl.replace(protocol, '');
 //Creating the base directory
 if (!fs.exists(domain))
