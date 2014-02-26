@@ -13,7 +13,6 @@ var additionalFiles = [
     ['https://raw.github.com/appendto/jquery-mockjax/master/jquery.mockjax.js', 'static/js/jquery.mockjax.js']
 ];
 
-//Constants
 var spider = require('casper').create({
     pageSettings: {
         loadPlugins: false
@@ -237,7 +236,6 @@ spider.on('resource.received', function(resource) {
 });
 
 //Here lives the big daddy driver function
-
 function toSpiderOrNotToSpider() {
     if (linkToGo[index]) {
 
