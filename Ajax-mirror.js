@@ -1,6 +1,6 @@
 //Global variables only change base url. NEVER leave a trailing /
-var baseUrl = 'http://localhost:5000' //'http://staging.osf.io';
-var protocol = 'http://'
+var baseUrl = 'http://localhost:5000'; //'http://staging.osf.io';
+var protocol = 'http://';
 //Dont change anything past here
 var linkToGo = ['/', '/nw687/'];
 var visited = [];
@@ -10,7 +10,7 @@ var files = [];
 var index = 0;
 var procUrls = false;
 var additionalFiles = [
-  ['https://raw.github.com/appendto/jquery-mockjax/master/jquery.mockjax.js', 'static/js/jquery.mockjax.js']
+    ['https://raw.github.com/appendto/jquery-mockjax/master/jquery.mockjax.js', 'static/js/jquery.mockjax.js']
 ];
 
 //Constants
@@ -42,24 +42,21 @@ function saveResources() {
     spider.echo('Finished saving resources.');
 }
 
-function stripLinks() {
+function stripLinks(url) {
     var links = document.querySelectorAll('a');
     return Array.prototype.map.call(links, function(e) {
-      if(!e.getAttribute('download'))
-        return e.getAttribute('href');
-      return null;
-    });
-}
-
-function cleanLinks(links) {
-    return links.filter(function(element, position) {
-        return links != null && links.indexOf(element) == position && element.charAt(0) == '/';
+        if (!e.getAttribute('download')) {
+                if (e.getAttribute('href') && e.getAttribute('href').charAt(0) === '?')
+                    return url + e.getAttribute('href');
+            return e.getAttribute('href');
+        }
+        return null;
     });
 }
 
 function processLinks(links) {
     filtered = links.filter(function(element, position) {
-        return links.indexOf(element) == position && element.charAt(0) == '/' && linkToGo.indexOf(element) == -1 && visited.indexOf(element) == -1 && element.indexOf('#') == -1;
+        return element != null && links.indexOf(element) == position && element.charAt(0) == '/' && linkToGo.indexOf(element) == -1 && visited.indexOf(element) == -1 && element.indexOf('#') == -1;
     });
 
     linkToGo = linkToGo.concat(filtered);
@@ -67,7 +64,7 @@ function processLinks(links) {
 
 function grab(url) {
     this.then(function() {
-        var linklist = this.evaluate(stripLinks);
+        var linklist = this.evaluate(stripLinks, linkToGo[index]);
         if (linklist) {
             processLinks(linklist);
         }
@@ -127,10 +124,6 @@ function getHgridUrls() {
     });
 }
 
-function buildHTAccess() {
-
-}
-
 function get404() {
     this.getUrl = baseUrl + '/404.html';
     this.then(function() {
@@ -139,7 +132,8 @@ function get404() {
         var src = this.evaluate(function(url) {
             return __utils__.sendAJAX(url);
         }, this.getUrl);
-
+        src = src.replace(/(href=")(\?)/, '$1../%3f');
+        src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
         if (procUrls)
             src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
         html.write(src);
@@ -148,7 +142,7 @@ function get404() {
 }
 
 function clone() {
-    this.getUrl = baseUrl + linkToGo[index];
+    this.getUrl = decodeURI(baseUrl + linkToGo[index]);
 
     this.then(function() {
 
@@ -174,26 +168,20 @@ function clone() {
     });
 }
 
-function aquireFiles() {
-  files = files.filter(function(e, p) {
-    return files.indexOf(e) == p;
-  });
-  this.each(files, function(res) {
-
-  });
-}
-
 function getAdditionalFiles() {
-  for(var i = 0; i < additionalFiles.length; i++)
-  {
-    this.download(additionalFiles[i][0],additionalFiles[i][1]);
-  }
+    for (var i = 0; i < additionalFiles.length; i++) {
+        this.download(additionalFiles[i][0], additionalFiles[i][1]);
+    }
 }
 
 function buildFauxJax() {
     if (ajaxes.length > 0) {
         this.echo('Mocking AJAX...')
-        var fauxJax = fs.open('.' + linkToGo[index] + 'fauxJax.js', 'w');
+        var saveUrl = '.' + linkToGo[index];
+        if(saveUrl.charAt(saveUrl.length-1) != '/')
+            saveUrl+='/';
+        saveUrl += 'fauxJax.js';
+        var fauxJax = fs.open(saveUrl, 'w');
 
         fauxJax.write('(function() {\n');
 
@@ -217,10 +205,9 @@ function buildFauxJax() {
     return false;
 };
 
-spider.on('resource.requested', function(resource) {
-    if (resource.url != this.getCurrentUrl()) {
+spider.on('resource.received', function(resource) {
+    if (resource.url != this.getCurrentUrl() && resource.contentType.indexOf('html') === -1) {
         resource.url = resource.url.replace(stripUrlParams, '$1');
-
         if (linkToGo.indexOf(resource.url.replace(baseUrl, '')) == -1 && resource.url.indexOf(baseUrl) != -1) {
 
             if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + linkToGo[index] && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
@@ -232,10 +219,6 @@ spider.on('resource.requested', function(resource) {
             }
         }
     }
-});
-
-spider.on('http.status.302', function(resource) {
-    this.echo('Hey, this one is 302: ' + resource.url);
 });
 
 //Here lives the big daddy driver function
