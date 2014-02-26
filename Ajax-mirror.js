@@ -2,7 +2,7 @@
 var baseUrl = 'http://localhost:5000'; //'http://staging.osf.io';
 var protocol = 'http://';
 //Dont change anything past here
-var linkToGo = ['/', '/nw687/'];
+var linkToGo = ['/', '/ih6zf/'];
 var visited = [];
 var resources = [];
 var ajaxes = [];
@@ -17,7 +17,9 @@ var additionalFiles = [
 var spider = require('casper').create({
     pageSettings: {
         loadPlugins: false
-    },
+    }//,
+    //verbose: true,
+    //logLevel: 'debug'
 });
 var fs = require('fs');
 var getDirectory = /^(.+)\/([^\/]+)$/;
@@ -83,11 +85,12 @@ function getSaveName(url) {
         url += 'index.html';
     else
         url += '/index.html';
-    this.echo('Saving as .' + url);
+    this.echo('\tSaving as .' + url);
     return '.' + url;
 }
 
 function clickThings() {
+    this.echo('\tClicking expand elements...');
     this.then(function() {
         var rv;
         do {
@@ -103,6 +106,7 @@ function clickThings() {
         } while (rv);
 
     });
+    this.echo('\tFinished Clicking');
 }
 
 function getHgridUrls() {
@@ -119,12 +123,15 @@ function getHgridUrls() {
             }
             return false;
         });
-        if (links)
+        if (links){
+            this.echo('\tFound ' + links.length + ' links from Hgrid.')
             linkToGo = linkToGo.concat(links);
+        }
     });
 }
 
 function get404() {
+    this.echo('Building 404 Page.')
     this.getUrl = baseUrl + '/404.html';
     this.then(function() {
 
@@ -132,7 +139,7 @@ function get404() {
         var src = this.evaluate(function(url) {
             return __utils__.sendAJAX(url);
         }, this.getUrl);
-        src = src.replace(/(href=")(\?)/, '$1../%3f');
+
         src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
         if (procUrls)
             src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
@@ -151,6 +158,13 @@ function clone() {
             return __utils__.sendAJAX(url);
         }, this.getUrl);
 
+        if(this.getUrl.indexOf('?') == -1)
+            src = src.replace(/(href=")(\?)/, '$1./%3f');
+        else
+            src = src.replace(/(href=")(\?)/, '$1../%3f');
+
+        src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
+        
         if (procUrls)
             src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
 
@@ -176,7 +190,7 @@ function getAdditionalFiles() {
 
 function buildFauxJax() {
     if (ajaxes.length > 0) {
-        this.echo('Mocking AJAX...')
+        this.echo('\tMocking AJAX...')
         var saveUrl = '.' + linkToGo[index];
         if(saveUrl.charAt(saveUrl.length-1) != '/')
             saveUrl+='/';
@@ -186,7 +200,7 @@ function buildFauxJax() {
         fauxJax.write('(function() {\n');
 
         for (var i = 0; i < ajaxes.length; i++) {
-            this.echo('Mocking request to ' + decodeURI(ajaxes[i]) + ' (' + (i + 1) + '/' + ajaxes.length + ')');
+            this.echo('\t\tMocking request to ' + decodeURI(ajaxes[i]) + ' (' + (i + 1) + '/' + ajaxes.length + ')');
             fauxJax.write('$.mockjax({\nurl: \'' + decodeURI(ajaxes[i]) + '\',\ndataType: \'json\',\nresponseText: ');
 
             fauxJax.write(this.evaluate(function(ajax) {
@@ -199,7 +213,7 @@ function buildFauxJax() {
         fauxJax.write('})();');
         fauxJax.close();
         ajaxes = [];
-        this.echo('Finished mocking.')
+        this.echo('\tFinished mocking.')
         return true;
     }
     return false;
@@ -213,7 +227,7 @@ spider.on('resource.received', function(resource) {
             if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + linkToGo[index] && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
                 resource.url = resource.url.replace(baseUrl, '');
                 ajaxes.push(resource.url);
-                this.echo('Pushed ' + resource.url + ' to ajax queue.');
+                this.echo('\tPushed ' + resource.url + ' to ajax queue.');
             } else if (resources.indexOf(resource.url) == -1 && resource.url.charAt(resource.url.length - 1) != '/') {
                 resources.push(resource.url);
             }
