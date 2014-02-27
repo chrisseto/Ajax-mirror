@@ -7,18 +7,22 @@ Uses [mockjax](https://github.com/appendto/jquery-mockjax) to mock ajax calls to
 
 Currently about 90% working.
 
-Note: 
+###Searching
+Create a [custom google search](https://www.google.com/cse/create/new) and make note of your 'cx.'
+Open search/index.html and insert your cx into the `var cx=...` statement.
+
+###404 Pages
+Rename htaccess to .htaccess and place it along with 404.html into your root www/ directory.
 
 ###ToDo
 * Async
-* stablity testing
 * faster
 * resume?
 * Disable buttons?
 * code review/cleanup
-* Strip piwik
-* Stripping facebook and google analytics?
 * Search does not work.
+* github branches
+    - Just the issue with dashboard
 
 ###Done
 * not clones pages with #'s
@@ -34,6 +38,8 @@ Note:
     - Doesn't seem to be a better way
 * FauxJax double listing
 * Inject readonly flag
+* Strip piwik
+* Stripping facebook and google analytics?
 
 Usage:
 ```
