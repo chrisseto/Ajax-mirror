@@ -12,7 +12,11 @@ var procUrls = false;
 var additionalFiles = [
     ['https://raw.github.com/appendto/jquery-mockjax/master/jquery.mockjax.js', 'static/js/jquery.mockjax.js']
 ];
+var ignoreFiles = [
+    'piwik',
+    'prum',
 
+]
 var spider = require('casper').create({
     pageSettings: {
         loadPlugins: false
@@ -23,6 +27,7 @@ var spider = require('casper').create({
 var fs = require('fs');
 var getDirectory = /^(.+)\/([^\/]+)$/;
 var stripUrlParams = /(.+?)(\?.*)$/;
+var notFile = /^(?:http|https):\/\/.+?\/[^\.]+$/;
 // /vars
 
 function getCli() {
@@ -57,7 +62,7 @@ function stripLinks(url) {
 
 function processLinks(links) {
     filtered = links.filter(function(element, position) {
-        return element != null && links.indexOf(element) == position && element.charAt(0) == '/' && linkToGo.indexOf(element) == -1 && visited.indexOf(element) == -1 && element.indexOf('#') == -1;
+        return element != null && links.indexOf(element) == position && element.charAt(0) == '/' && linkToGo.indexOf(element) == -1 && visited.indexOf(element) == -1 && element.indexOf('#') == -1 && element.indexOf('download') == -1;
     });
 
     linkToGo = linkToGo.concat(filtered);
@@ -101,11 +106,29 @@ function clickThings() {
                 return false
             });
             if (rv)
-                this.wait(5000);
+                this.wait(6000);
         } while (rv);
 
     });
     this.echo('\tFinished Clicking');
+}
+
+function iterGithubBranches() {
+    this.echo('Clicking through GitHub Branches');
+    this.then(function() {
+        rv = this.evaluate(function() {
+            if ($('.github-branch-select option')) {
+                $('.github-branch-select option').each(function() {
+                    $('.github-branch-select').val(this.value);
+                    $('.github-branch-select').change();
+                });
+                return true;
+            }
+            return false;
+        });
+        if(rv)
+            this.wait(2000);
+    });
 }
 
 function getHgridUrls() {
@@ -146,8 +169,6 @@ function clone() {
             else
                 src = src.replace(/(href=")(\?)/g, '$1../%3f');
 
-            src = src.replace('This site is running in development mode.', 'This site is a read-only static mirror.');
-
             if (procUrls)
                 src = src.replace(/(href=")(\/[^\/])/g, '$1' + fs.workingDirectory + '$2');
 
@@ -160,7 +181,13 @@ function clone() {
                 else
                     html.write('\n<script src="/static/js/jquery.mockjax.js"></script>\n<script src="./fauxJax.js"></script>\n');
 
-            html.write(src.slice(i));
+            var n = src.indexOf('<body>') + 7;
+
+            html.write(src.slice(i, n));
+            html.write('<style>#mirror {position:fixed;bottom:0;left:0;border-top-right-radius:8px;background-color:red;color:white;padding:.5em;}</style>');
+            html.write('<div id="mirror"><strong>WARNING</strong>: This site is a static read-only mirror.</div>');
+            html.write(src.slice(n));
+
             html.close();
         }
     });
@@ -185,13 +212,13 @@ function buildFauxJax() {
 
         for (var i = 0; i < ajaxes.length; i++) {
             this.echo('\t\tMocking request to ' + decodeURI(ajaxes[i]) + ' (' + (i + 1) + '/' + ajaxes.length + ')');
-            fauxJax.write('$.mockjax({\nurl: \'' + decodeURI(ajaxes[i]) + '\',\ndataType: \'json\',\nresponseText: ');
+            fauxJax.write('$.mockjax({\nurl: /' + decodeURI(ajaxes[i]).replace(stripUrlParams, '$1').replace(/\//g, '\\/') + '(\\?.*|$)/,\ndataType: \'json\',\nresponseText: ');
 
             fauxJax.write(this.evaluate(function(ajax) {
                 return __utils__.sendAJAX(ajax);
             }, ajaxes[i]));
 
-            fauxJax.write('\n});');
+            fauxJax.write('\n});\n');
         }
 
         fauxJax.write('})();');
@@ -204,22 +231,24 @@ function buildFauxJax() {
 };
 
 spider.on('resource.received', function(resource) {
-    if (resource.url != this.getCurrentUrl() && resource.contentType.indexOf('html') === -1) {
-        resource.url = resource.url.replace(stripUrlParams, '$1');
-        if (linkToGo.indexOf(resource.url.replace(baseUrl, '')) == -1 && resource.url.indexOf(baseUrl) != -1) {
 
-            if (resource.url.indexOf('.') == -1 && resource.url != baseUrl + linkToGo[index] && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
-                resource.url = resource.url.replace(baseUrl, '');
-                ajaxes.push(resource.url);
-                this.echo('\tPushed ' + resource.url + ' to ajax queue.');
-            } else if (resources.indexOf(resource.url) == -1 && resource.url.charAt(resource.url.length - 1) != '/') {
-                resources.push(resource.url);
-            }
+    if (resource.contentType.indexOf('html') === -1 && resource.url.indexOf(baseUrl) != -1) {
+
+        //resource.url = resource.url.replace(stripUrlParams, '$1');
+
+        if (resource.contentType.indexOf('json') != -1 && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1 && notFile.exec(resource.url)) {
+            resource.url = resource.url.replace(baseUrl, '');
+            ajaxes.push(resource.url);
+            this.echo('\tPushed ' + resource.url + ' to ajax queue.');
+
+        } else if (resources.indexOf(resource.url.replace(stripUrlParams, '$1')) == -1) {
+            resources.push(resource.url.replace(stripUrlParams, '$1'));
         }
     }
 });
 
 //Here lives the big daddy driver function
+
 function toSpiderOrNotToSpider() {
     if (linkToGo[index]) {
 
@@ -230,6 +259,7 @@ function toSpiderOrNotToSpider() {
         this.echo('Crawling ' + baseUrl + linkToGo[index] + '(' + index + '/' + linkToGo.length + ')');
         this.start(baseUrl + linkToGo[index]);
         grab.call(this, linkToGo[index]);
+        iterGithubBranches.call(this);
         clickThings.call(this);
         getHgridUrls.call(this);
         clone.call(this);
