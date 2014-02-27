@@ -14,12 +14,11 @@ Note:
 * stablity testing
 * faster
 * resume?
-* build 404 file
-    - Generate .htaccess?
 * Disable buttons?
-* cloning redirects
-    - doesn't seem possibly with casper
 * code review/cleanup
+* Strip piwik
+* Stripping facebook and google analytics?
+* Search does not work.
 
 ###Done
 * not clones pages with #'s
@@ -33,6 +32,8 @@ Note:
     - would be worse...
 * better way to pull page source
     - Doesn't seem to be a better way
+* FauxJax double listing
+* Inject readonly flag
 
 Usage:
 ```
