@@ -6,6 +6,7 @@ var linkToGo = ['/', '/ih6zf/'];
 var visited = [];
 var resources = [];
 var ajaxes = [];
+var branches = [];
 var files = [];
 var index = 0;
 var procUrls = false;
@@ -114,11 +115,14 @@ function clickThings() {
 }
 
 function iterGithubBranches() {
-    this.echo('Clicking through GitHub Branches');
+    this.echo('\tClicking through GitHub Branches');
     this.then(function() {
         rv = this.evaluate(function() {
             if ($('.github-branch-select option')) {
                 $('.github-branch-select option').each(function() {
+                    do {
+                        $('.hg-expand').click();
+                    } while ($('.hg-expand').length > 0);
                     $('.github-branch-select').val(this.value);
                     $('.github-branch-select').change();
                 });
@@ -126,8 +130,8 @@ function iterGithubBranches() {
             }
             return false;
         });
-        if(rv)
-            this.wait(2000);
+        if (rv)
+            this.wait(5000);
     });
 }
 
@@ -160,7 +164,7 @@ function clone() {
             return __utils__.sendAJAX(url);
         }, this.getUrl);
 
-        if (src.indexOf('data-http-status-code="404"') == -1) {
+        if (src && src.indexOf('data-http-status-code="404"') == -1) {
 
             var html = fs.open(getSaveName.call(this, this.getUrl), 'w');
 
@@ -212,8 +216,10 @@ function buildFauxJax() {
 
         for (var i = 0; i < ajaxes.length; i++) {
             this.echo('\t\tMocking request to ' + decodeURI(ajaxes[i]) + ' (' + (i + 1) + '/' + ajaxes.length + ')');
-            fauxJax.write('$.mockjax({\nurl: /' + decodeURI(ajaxes[i]).replace(stripUrlParams, '$1').replace(/\//g, '\\/') + '(\\?.*|$)/,\ndataType: \'json\',\nresponseText: ');
-
+            if (ajaxes[i].indexOf('github') == -1)
+                fauxJax.write('$.mockjax({\nurl: /' + decodeURI(ajaxes[i]).replace(stripUrlParams, '$1').replace(/\//g, '\\/') + '(\\?.*|$)/,\ndataType: \'json\',\nresponseText: ');
+            else
+                fauxJax.write('$.mockjax({\nurl: \'' + decodeURI(ajaxes[i]) + '\',\ndataType: \'json\',\nresponseText: ');
             fauxJax.write(this.evaluate(function(ajax) {
                 return __utils__.sendAJAX(ajax);
             }, ajaxes[i]));
@@ -234,15 +240,31 @@ spider.on('resource.received', function(resource) {
 
     if (resource.contentType.indexOf('html') === -1 && resource.url.indexOf(baseUrl) != -1) {
 
-        //resource.url = resource.url.replace(stripUrlParams, '$1');
+        var matches = stripUrlParams.exec(resource.url);
+        if (matches) {
+            resource.url = matches[1];
+            resource.param = matches[2];
+        }
 
-        if (resource.contentType.indexOf('json') != -1 && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1 && notFile.exec(resource.url)) {
+        if (resource.contentType.indexOf('json') != -1 && notFile.exec(resource.url) && (ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1 || ajaxes.indexOf(resource.url.replace(baseUrl, '')) + resource.param == -1)) {
+
             resource.url = resource.url.replace(baseUrl, '');
-            ajaxes.push(resource.url);
+            if (resource.url.indexOf('github') == -1)
+                ajaxes.push(resource.url);
+            else
+                ajaxes.push(resource.url + resource.param);
             this.echo('\tPushed ' + resource.url + ' to ajax queue.');
 
-        } else if (resources.indexOf(resource.url.replace(stripUrlParams, '$1')) == -1) {
-            resources.push(resource.url.replace(stripUrlParams, '$1'));
+        } else if (resources.indexOf(resource.url) == -1 && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
+            var save = true;
+            for (var i = 0; i < ignoreFiles.length; i++) {
+                if (resource.url.indexOf(ignoreFiles[i]) != -1) {
+                    save = false;
+                    break;
+                }
+            }
+            if (save)
+                resources.push(resource.url);
         }
     }
 });
