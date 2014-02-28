@@ -95,44 +95,36 @@ function getSaveName(url) {
 }
 
 function clickThings() {
-    this.echo('\tClicking expand elements...');
+    this.echo('\tClicking things...');
     this.then(function() {
-        var rv;
-        do {
-            rv = this.evaluate(function() {
-                if ($('.hg-expand').length > 0) {
-                    $('.hg-expand').click();
-                    return true;
-                }
-                return false
-            });
-            if (rv)
-                this.wait(6000);
-        } while (rv);
-
-    });
-    this.echo('\tFinished Clicking');
-}
-
-function iterGithubBranches() {
-    this.echo('\tClicking through GitHub Branches');
-    this.then(function() {
-        rv = this.evaluate(function() {
-            if ($('.github-branch-select option')) {
-                $('.github-branch-select option').each(function() {
-                    do {
-                        $('.hg-expand').click();
-                    } while ($('.hg-expand').length > 0);
-                    $('.github-branch-select').val(this.value);
-                    $('.github-branch-select').change();
-                });
-                return true;
-            }
-            return false;
+        var rv, i = 0;
+        var count = this.evaluate(function() {
+            return $('.github-branch-select option').length;
         });
-        if (rv)
-            this.wait(5000);
+
+
+        do {
+            do {
+                rv = this.evaluate(function() {
+                    if ($('.hg-expand').length > 0) {
+                        $('.hg-expand').click();
+                        return true;
+                    }
+                    return false
+                });
+                if(rv)
+                    this.wait(2000);
+            } while (rv);
+            i = this.evaluate(function(n) {
+                $('.github-branch-select').val($('.github-branch-select option')[n].value);
+                $('.github-branch-select').change();
+                return n + 1;
+            }, i);
+            this.wait(2000);
+        } while (i < count);
+        this.echo('\tFinished Clicking');
     });
+
 }
 
 function getHgridUrls() {
@@ -240,19 +232,16 @@ spider.on('resource.received', function(resource) {
 
     if (resource.contentType.indexOf('html') === -1 && resource.url.indexOf(baseUrl) != -1) {
 
-        var matches = stripUrlParams.exec(resource.url);
-        if (matches) {
-            resource.url = matches[1];
-            resource.param = matches[2];
-        }
+        resource.urlLong = resource.url.replace(baseUrl, '');
+        resource.url = resource.url.replace(stripUrlParams, '$1');
 
-        if (resource.contentType.indexOf('json') != -1 && notFile.exec(resource.url) && (ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1 || ajaxes.indexOf(resource.url.replace(baseUrl, '')) + resource.param == -1)) {
+        if (resource.contentType.indexOf('json') != -1 && notFile.exec(resource.url) && (ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1 || resource.url.indexOf('github'))) {
 
             resource.url = resource.url.replace(baseUrl, '');
             if (resource.url.indexOf('github') == -1)
                 ajaxes.push(resource.url);
             else
-                ajaxes.push(resource.url + resource.param);
+                ajaxes.push(resource.urlLong);
             this.echo('\tPushed ' + resource.url + ' to ajax queue.');
 
         } else if (resources.indexOf(resource.url) == -1 && ajaxes.indexOf(resource.url.replace(baseUrl, '')) == -1) {
@@ -281,7 +270,6 @@ function toSpiderOrNotToSpider() {
         this.echo('Crawling ' + baseUrl + linkToGo[index] + '(' + index + '/' + linkToGo.length + ')');
         this.start(baseUrl + linkToGo[index]);
         grab.call(this, linkToGo[index]);
-        iterGithubBranches.call(this);
         clickThings.call(this);
         getHgridUrls.call(this);
         clone.call(this);

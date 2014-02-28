@@ -44,6 +44,7 @@ Rename htaccess to .htaccess and place it along with 404.html into your root www
 Usage:
 ```
 $capserjs Ajax-mirror.js --web-security=no
+$wget -x -i mirrorable.txt
 ```
 
 Target site defaults to localhost:5000
