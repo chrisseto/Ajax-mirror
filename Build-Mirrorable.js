@@ -5,19 +5,18 @@ var protocol = 'http://';
 var linkToGo = ['/', '/ih6zf/'];
 var visited = [];
 var resources = [];
-var ajaxes = [];
-var branches = [];
-var files = [];
 var index = 0;
+var fixCache = /^(.+)(\?_=\d+|\?\d+)/;
+var projectApi = /^.*api\/v1\/project\/\w+\/$/;
+var fileDumpUrl = 'files/urls/';
+var fs = require('fs');
+var verbose = false;
 
 var spider = require('casper').create({
     pageSettings: {
         loadPlugins: false
-    } //,
-    //verbose: true,
-    //logLevel: 'debug'
+    }
 });
-var fs = require('fs');
 
 
 function getCli() {
@@ -25,8 +24,8 @@ function getCli() {
         baseUrl = spider.cli.get('server');
     if (spider.cli.has('s'))
         baseUrl = spider.cli.get('s');
-    if (spider.cli.has('k'))
-        procUrls = true;
+    if (spider.cli.has('v') || spider.cli.has('verbose'))
+        verbose = true;
 }
 
 function stripLinks(url) {
@@ -58,75 +57,41 @@ function grab(url) {
     });
 }
 
-function clickThings() {
-    this.echo('\tClicking things...');
-    this.then(function() {
-        var rv, i = 0;
-        var count = this.evaluate(function() {
-            return $('.github-branch-select option').length;
-        });
-
-
-        do {
-            do {
-                rv = this.evaluate(function() {
-                    if ($('.hg-expand').length > 0) {
-                        $('.hg-expand').click();
-                        return true;
-                    }
-                    return false
-                });
-                if(rv)
-                    this.wait(2000);
-            } while (rv);
-            i = this.evaluate(function(n) {
-                $('.github-branch-select').val($('.github-branch-select option')[n].value);
-                $('.github-branch-select').change();
-                return n + 1;
-            }, i);
-            this.wait(2000);
-        } while (i < count);
-        this.echo('\tFinished Clicking');
-    });
-
-}
-
-function getHgridUrls() {
-    this.then(function() {
-        links = this.evaluate(function() {
-            if (filebrowser) {
-                links = filebrowser.grid.getData().map(function(e) {
-                    return e.urls.view;
-                });
-                links = links.filter(function(e, p) {
-                    return e != null
-                });
-                return links;
-            }
-            return false;
-        });
-        if (links) {
-            this.echo('\tFound ' + links.length + ' links from Hgrid.')
-            linkToGo = linkToGo.concat(links);
-        }
-    });
-}
-
 spider.on('resource.received', function(resource) {
-    resources.push(resource.url);
+    //TODO Parse for file or trailing /
+    resource.url = resource.url.replace(fixCache, '$1');
+    if (resources.indexOf(resource.url) == -1 && resource.url.indexOf(baseUrl) != -1) {
+        resources.push(resource.url);
+
+        if(verbose)
+            mirrorable.write(resource.url + '\n');
+        else
+            this.echo(resource.url);
+
+        if (projectApi.exec(resource.url))
+            grabHgrid.call(this, resource.url);
+    }
 });
 
-function cleanResources() {
-    resources = resources.filter(function(e,p) {
-        return resources.indexOf(e) == p && e.indexOf(baseUrl) != -1;
-    });
-}
-
-function cleanVisted() {
-    visited = visited.map(function(e) {
+function grabHgrid(url) {
+    var urls = JSON.parse(this.evaluate(function(url) {
+        return __utils__.sendAJAX(url);
+    }, url + fileDumpUrl));
+    linkToGo = linkToGo.concat(urls);
+    urls = urls.map(function(e, p) {
         return baseUrl + e;
     });
+    resources = resources.concat(urls);
+
+    if (verbose) {
+        mirrorable.write(urls.join('\n'));
+        mirrorable.flush();
+    }
+    else
+        this.echo(urls.join('\n'));
+
 }
+
 //Here lives the big daddy driver function
 
 function toSpiderOrNotToSpider() {
@@ -136,24 +101,20 @@ function toSpiderOrNotToSpider() {
             index++;
             this.run(toSpiderOrNotToSpider);
         }
-        this.echo('Crawling ' + baseUrl + linkToGo[index] + '(' + index + '/' + linkToGo.length + ')');
+        if (verbose)
+            this.echo('Crawling ' + baseUrl + linkToGo[index] + '(' + index + '/' + linkToGo.length + ')');
         this.start(baseUrl + linkToGo[index]);
         grab.call(this, linkToGo[index]);
-        clickThings.call(this);
-        getHgridUrls.call(this);
         visited.push(linkToGo[index]);
         this.then(function() {
             index++
         });
         this.run(toSpiderOrNotToSpider);
     } else {
-        cleanResources.call(this);
-        cleanVisted.call(this);
-        mirrorable.write(visited.join('\n'));
-        mirrorable.write('\n');
-        mirrorable.write(resources.join('\n'));
-        this.echo('Found ' + visited.length + ' links.');
-        mirrorable.close();
+        if(verbose) {
+            this.echo('Found ' + resources.length + ' links.');
+            mirrorable.close();
+        }
         this.exit();
     }
 }
@@ -161,14 +122,11 @@ function toSpiderOrNotToSpider() {
 //////////////Execution begins here/////////////////
 getCli();
 var domain = baseUrl.replace(protocol, '');
-//Creating the base directory
-var mirrorable = fs.open('mirrorable.txt', 'w');
+if (verbose)
+    var mirrorable = fs.open('mirrorable.txt', 'w');
+var saveable = /.*((\/|\?.*)|\..*)$/; //For use later add baseurl to front
+spider.timeout = 3000;
 
-spider.start().then(function() {
-    this.echo('===============');
-    this.echo('Spider started.');
-    this.echo('===============\n');
-});
-
+spider.start();
 //Lift off!
 spider.run(toSpiderOrNotToSpider);
