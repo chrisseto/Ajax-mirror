@@ -1,1 +1,6 @@
-ErrorDocument 404 /404.html
+Options +FollowSymlinks
+RewriteEngine On
+RewriteBase /
+RewriteCond %{QUERY_STRING} ^(.+)$ [NC]
+RewriteCond %{SCRIPT_URI} !index.html
+RewriteRule (.+)$ $1index.html\%3F%1? [NE,L]
