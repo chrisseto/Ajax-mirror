@@ -21,8 +21,7 @@ Rename htaccess to .htaccess and place it along with 404.html into your root www
 * Disable buttons?
 * code review/cleanup
 * Search does not work.
-* github branches
-    - Just the issue with dashboard
+* Files GUID's
 
 ###Done
 * not clones pages with #'s
@@ -40,11 +39,16 @@ Rename htaccess to .htaccess and place it along with 404.html into your root www
 * Inject readonly flag
 * Strip piwik
 * Stripping facebook and google analytics?
+* github branches
+    - Just the issue with dashboard
 
 Usage:
 ```
 $capserjs Ajax-mirror.js --web-security=no
+or
+$casperjs Build-Mirrorable.js
 $wget -x -i mirrorable.txt
+
 ```
 
 Target site defaults to localhost:5000
@@ -61,3 +65,4 @@ Notes:
 * The script sometimes randomly freezes on the first couple pages.
     - clearing the directory and restarting the script seems to fix this.
 * requires access to the filebrowser object
+* Build hgrid dump method
