@@ -22,6 +22,8 @@ Rename htaccess to .htaccess and place it along with 404.html into your root www
 * code review/cleanup
 * Search does not work.
 * Files GUID's
+* Hitting download links still an issue.
+* Dupilcate link issue (trailing /'s)
 
 ###Done
 * not clones pages with #'s

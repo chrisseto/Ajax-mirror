@@ -127,6 +127,6 @@ if (verbose)
 var saveable = /.*((\/|\?.*)|\..*)$/; //For use later add baseurl to front
 spider.timeout = 3000;
 
-spider.start();
+spider.start().then(function(){});
 //Lift off!
 spider.run(toSpiderOrNotToSpider);
